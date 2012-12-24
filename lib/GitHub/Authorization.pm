@@ -1,6 +1,6 @@
 package GitHub::Authorization;
 
-# ABSTRACT: Generate a gitHub OAuth2 non-web authorization token
+# ABSTRACT: Generate a GitHub OAuth2 non-web authorization token
 
 use strict;
 use warnings;
@@ -9,21 +9,20 @@ use Carp 'confess';
 use autobox::JSON;
 use HTTP::Tiny;
 use MIME::Base64;
-#use Params::Validate;
+use Params::Validate ':all';
 
 # for SSL and SSL CA verification
 use IO::Socket::SSL 1.56;
 use Mozilla::CA;
 
+use namespace::clean;
+
 use Sub::Exporter::Progressive -setup => {
     exports => [ qw{ get_gh_token } ],
-    groups => {
-        default => [ 'get_gh_token' ],
-    },
 };
 
 # debugging...
-use Smart::Comments '###';
+#use Smart::Comments '###';
 
 my %scopes =
     map { $_ => 1 }
@@ -38,15 +37,57 @@ sub _default_agent {
 
 sub _url { 'https://api.github.com' . shift }
 
-=func get_gh_token($user, $password, [ $scopes, $note, $note_uri ])
+=func get_gh_token(user => Str, password => Str, ...)
 
-We take 2 mandatory parameters (user and password), and two optional
-parameters: an arrayref of scopes and a note that will appear as the name on
-the "Authorized Applications" status list.
+B<NOTE: Validate your parameters!>  We do basic validation, but nothing
+strenuous.
 
+We take 2 mandatory parameters (user and password), and can take several more
+optional ones:
+
+=head3 Parameters
+
+=for :list
+* user (required)
+The user-name or email of the user the authorization is being created against.
+* password (required)
+The user's password.
+* scopes
+An ArrayRef of scopes (described L</Legal Scopes>).
+* note
+A short note (or reminder) describing what the authorization is for.
+* note_uri
+A link that describes why the authorization has been generated
 We throw an exception on error or failure, and return the structure describing
 the new authorization token (and the token itself, as described below) on
 success.
+* client_id (required if client_secret is given)
+If requesting an authorization for a specific app, pass its client key here.
+* client_secret (required if client_id is given)
+If requesting an authorization for a specific app, pass its client secret here.
+
+=head3 On success...
+
+A successful return from get_gh_token() will look something like this:
+
+    {
+        app => {
+            name => "test! (API)",
+            url  => "http://developer.github.com/v3/oauth/#oauth-authorizations-api",
+        },
+        created_at => "2012-12-24T14:28:17Z",
+        id         => xxxxxxx, # an integer > 0
+        note       => "test!",
+        note_url   => undef,
+        scopes     => ["public_repo"],
+        token      => "****************************************",
+        updated_at => "2012-12-24T14:28:17Z",
+        url        => "https://api.github.com/authorizations/xxxxxxx",
+    }
+
+The C<token> slot is probably the bit you want.
+
+=head3 On failure/error...
 
 On failure, we confess() our sins:
 
@@ -58,7 +99,21 @@ message returned from GitHub itself.
 =cut
 
 sub get_gh_token {
-    my ($user, $password, $scopes, $note) = @_;
+
+    my %_opt = ( type => SCALAR, optional => 1 );
+    my %args = validate @_ => {
+        user          => { type => SCALAR,   regex => qr/^[A-Za-z0-9\.@]+$/ },
+        password      => { type => SCALAR                                   },
+        scopes        => { type => ARRAYREF, default => [ ]                 },
+
+        # optional args
+        note          => { %_opt                              },
+        note_uri      => { %_opt                              },
+        client_id     => { %_opt, regex => qr/^[a-f0-9]{20}$/ },
+        client_secret => { %_opt, regex => qr/^[a-f0-9]{40}$/ },
+    };
+
+    my ($user, $password, $scopes) = delete @args{qw{user password scopes}};
 
     $scopes ||= [];
 
@@ -67,13 +122,11 @@ sub get_gh_token {
         grep { ! $scopes{$_}       }
         @$scopes;
 
-    push @illegal, "user not supplied"
-        unless defined $user && length $user > 0;
-    push @illegal, "password not supplied"
-        unless defined $password && length $password > 0;
-
-    confess "Bad options: @illegal"
+    confess "Bad scopes: @illegal"
         if @illegal;
+
+    $args{scopes} = $scopes
+        if @$scopes;
 
     # now, to the real stuff
 
@@ -85,7 +138,7 @@ sub get_gh_token {
     my $url     = _url('/authorizations');
     my $hash    = MIME::Base64::encode_base64("$user:$password", '');
     my $headers = { Authorization => 'Basic ' . $hash };
-    my $content = { scopes => $scopes, note => $note };
+    my $content = { scopes => $scopes, %args };
 
     ### $url
     ### $headers
@@ -107,14 +160,27 @@ sub get_gh_token {
 !!42;
 __END__
 
+=for :stopwords OAuth OAuth2 Str repo repos gists adminable
+
 =head1 SYNOPSIS
 
     use GitHub::Authorization;
 
-    # ...
-
-    my $token_info = get_gh_token('RsrchBoy', '*****', ['gist'], 'test!')
+    my $token_info = get_gh_token(
+        user     => 'RsrchBoy',
+        password => '*****',
+        scopes   => ['repo'],
+        note     => 'test!',
+    );
     my $token      = $token_info->{token};
+
+    # e.g.
+    use Net::GitHub;
+    my $gh = Net::GitHub->new(access_token => $token, ...);
+
+    # ... or ...
+    use Pithub;
+    my $ph = Pithub->new(token => $token, ...);
 
 =head1 DESCRIPTION
 
@@ -125,11 +191,9 @@ L<GitHub API|http://developer.github.com/v3>, but none that provide a
 This package implements the procedure described in
 L<GitHub Developer's Guide "Non-Web Application
 Flow"|http://developer.github.com/v3/oauth/#non-web-application-flow> to
-create authorization tokens; that is, authoriation tokens tht can be stored,
-managed, reused and revoked without needing to store (or otherwise acquire) a
-user password.
-
-=head1 OVERVIEW
+create authorization tokens; that is, authorization tokens that can be
+stored, managed, reused and revoked without needing to store (or
+otherwise acquire) a user password.
 
 =head2 Exports
 
@@ -140,11 +204,11 @@ syntax; whatever you desire or require.
 =head2 Technologies
 
 This package uses and returns OAuth2 authorization tokens, and uses V3 of the
-GitHub API.  (Both the latest supported.)
+GitHub API.
 
 =head2 Legal Scopes
 
-The formal list of supported scops can be found at the L<GitHub OAuth API
+The formal list of supported scopes can be found at the L<GitHub OAuth API
 reference|http://developer.github.com/v3/oauth/#scopes> (note this list is
 taken almost verbatim from that page).  If a scope appears
 there but not here, please file an issue against this package (as the author
@@ -168,33 +232,16 @@ Read access to a user’s notifications. repo is accepted too.
 * gist
 write access to gists.
 
-=head2 RETURNED STRUCTURES
-
-A successful return from get_gh_token() will look something like this:
-
-    {
-        app => {
-            name => "test! (API)",
-            url  => "http://developer.github.com/v3/oauth/#oauth-authorizations-api",
-        },
-        created_at => "2012-12-24T14:28:17Z",
-        id         => xxxxxxx, # an integer > 0
-        note       => "test!",
-        note_url   => undef,
-        scopes     => ["public_repo"],
-        token      => "****************************************",
-        updated_at => "2012-12-24T14:28:17Z",
-        url        => "https://api.github.com/authorizations/xxxxxxx",
-    }
-
-=head2 MANAGING AUTHORIZATIONS
+=head1 MANAGING AUTHORIZATIONS
 
 All of a user's GitHub authorization tokens can be viewed and revoked on their
 L<GitHub Applications|https://github.com/settings/applications> account page.
 
-=head2 SSL VALIDATION
+Users may revoke tokens at any time through GitHub proper.
 
-We instruct our user-agent (L<HTTP::Tiny in this case) to validate the remote
+=head1 SSL VALIDATION
+
+We instruct our user-agent (L<HTTP::Tiny> in this case) to validate the remote
 server's certificate, as described in L<HTTP::Tiny/SSL-SUPPORT>.
 (Essentially, using L<Mozilla::CA>).
 
@@ -202,10 +249,15 @@ While this satisfies the "let's be cautious" alarms in the author's head,
 this may be too paranoid or not paranoid enough for you.  If so, please file
 an issue or pull request and we'll work something out.
 
+=head1 LIMITATIONS
+
+This package currently has no capabilities for deleting, altering, or
+otherwise doing anything with tokens outside of creating them.
+
 =head1 SEE ALSO
 
-The GitHub OAuth API reference at L<http://developer.github.com/v3/oauth/#create-a-new-authorization>
-
-L<Net::GitHub>, L<Pithub>, and the other packages that use them.
+L<The GitHub OAuth API reference|http://developer.github.com/v3/oauth/#create-a-new-authorization>
+L<Net::GitHub>
+L<Pithub>
 
 =cut
