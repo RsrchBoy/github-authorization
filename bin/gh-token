@@ -1,0 +1,66 @@
+#!/usr/bin/env perl
+
+# ABSTRACT: Generate a GitHub token from the command line
+
+use strict;
+use warnings;
+
+use opts 0.05;
+use autobox::dump;
+use IO::Prompter 0.004002;
+use GitHub::Authorization ':all';
+
+opts
+    my $userid     => { isa => 'Str',               },
+    my $no_scopes  => { isa => 'Bool', default => 0 },
+    my $password   => { isa => 'Str',               },
+    my $note       => { isa => 'Str'                },
+    my $note_url   => { isa => 'Str'                },
+    my $client_id  => { isa => 'Str'                },
+    my $client_sec => { isa => 'Str'                },
+    my $scopes     => {
+        isa     => 'Multiple',
+        default => [ 'default' ],
+        coerce  => 1,
+        alias   => 'scope',
+        comment => 'One or more scopes: ' . join(q{, }, legal_scopes),
+    },
+    ;
+
+# ask for a bunch of info not filled in at the command line
+$userid = prompt 'Enter your GitHub userid or email: '
+    unless $userid;
+$password = prompt 'Enter your GitHub password: ', -echo => '*'
+    unless $password;
+$note = prompt 'Enter a brief note: '
+    unless $note;
+$note_url = prompt 'Enter a note URI: '
+    unless $note_url;
+
+$scopes = []
+    if $no_scopes; # && ! defined $scopes;
+
+if (defined $scopes->[0] && $scopes->[0] eq 'default') {
+
+    $scopes = [];
+    my @opts = (legal_scopes, 'done adding');
+
+    while (my $scope = prompt 'Pick your scopes:', -menu => [ @opts ]) {
+        last if $scope eq 'done adding';
+        push @$scopes, "$scope";
+        print "\nCurrent scopes: @$scopes\n";
+    }
+}
+
+my $token = get_gh_token(
+    user     => "$userid",
+    password => "$password",
+    scopes   => $scopes,
+    note     => "$note",
+    note_url => "$note_url",
+);
+
+# debugging...
+#use Smart::Comments '###';
+
+print $token->perl;
