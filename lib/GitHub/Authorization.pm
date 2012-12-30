@@ -18,16 +18,11 @@ use Mozilla::CA;
 use namespace::clean;
 
 use Sub::Exporter::Progressive -setup => {
-    exports => [ qw{ get_gh_token } ],
+    exports => [ qw{ is_legal_scope legal_scopes get_gh_token } ],
 };
 
 # debugging...
 #use Smart::Comments '###';
-
-my %scopes =
-    map { $_ => 1 }
-    qw{ public_repo repo repo:status delete_repo notifications gist }
-    ;
 
 sub _default_agent {
     'GitHub::Authorization/'
@@ -56,7 +51,7 @@ The user's password.
 An ArrayRef of scopes (described L</Legal Scopes>).
 * note
 A short note (or reminder) describing what the authorization is for.
-* note_uri
+* note_url
 A link that describes why the authorization has been generated
 We throw an exception on error or failure, and return the structure describing
 the new authorization token (and the token itself, as described below) on
@@ -100,7 +95,7 @@ message returned from GitHub itself.
 
 sub get_gh_token {
 
-    my %_opt = ( type => SCALAR, optional => 1 );
+    my %_opt = ( type => SCALAR | UNDEF, optional => 1 );
     my %args = validate @_ => {
         user          => { type => SCALAR,   regex => qr/^[A-Za-z0-9\.@]+$/ },
         password      => { type => SCALAR                                   },
@@ -108,7 +103,7 @@ sub get_gh_token {
 
         # optional args
         note          => { %_opt                              },
-        note_uri      => { %_opt                              },
+        note_url      => { %_opt                              },
         client_id     => { %_opt, regex => qr/^[a-f0-9]{20}$/ },
         client_secret => { %_opt, regex => qr/^[a-f0-9]{40}$/ },
     };
@@ -118,8 +113,8 @@ sub get_gh_token {
     $scopes ||= [];
 
     my @illegal =
-        map  { "illegal_scope: $_" }
-        grep { ! $scopes{$_}       }
+        map  { "illegal_scope: $_"  }
+        grep { ! is_legal_scope($_) }
         @$scopes;
 
     confess "Bad scopes: @illegal"
@@ -155,6 +150,26 @@ sub get_gh_token {
         unless $res->{success};
 
     return $res->{content}->from_json;
+}
+
+=func legal_scopes
+
+Returns a list of legal scope names.  (See get_gh_token() doc for the list)
+
+=func is_legal_scope('scope_name')
+
+Returns true if the scope name given is a legal scope.
+
+=cut
+
+{
+    my %scopes =
+        map { $_ => 1 }
+        qw{ public_repo repo repo:status delete_repo notifications gist }
+        ;
+
+    sub legal_scopes   { sort keys %scopes }
+    sub is_legal_scope { $scopes{shift}    }
 }
 
 !!42;
