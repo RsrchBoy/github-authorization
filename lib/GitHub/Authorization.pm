@@ -165,11 +165,14 @@ Returns true if the scope name given is a legal scope.
 {
     my %scopes =
         map { $_ => 1 }
-        qw{ public_repo repo repo:status delete_repo notifications gist }
+        qw{
+            user user:email user:follow public_repo repo repo:status
+            delete_repo notifications gist
+        }, q{}
         ;
 
-    sub legal_scopes   { sort keys %scopes }
-    sub is_legal_scope { $scopes{shift}    }
+    sub legal_scopes   { sort keys %scopes     }
+    sub is_legal_scope { $scopes{shift || q{}} }
 }
 
 !!42;
@@ -233,19 +236,23 @@ has likely not noticed it yet).
 * (no scopes given)
 public read-only access (includes public user profile info, public repo info, and gists).
 * user
-Read/write access to profile info only.
+Read/write access to profile info only. Note: this scope includes C<user:email> and C<user:follow>.
+* user:email
+Read access to a user’s email addresses.
+* user:follow
+Access to follow or unfollow other users.
 * public_repo
 Read/write access to public repos and organizations.
 * repo
 Read/write access to public and private repos and organizations.
 * repo:status
-Read/write access to public and private repo statuses. Does not include access to code - use repo for that.
+Read/write access to public and private repository commit statuses. This scope is only necessary to grant other users or services access to private repository commit statuses without granting access to the code. The C<repo> and C<public_repo> scopes already include access to commit status for private and public repositories respectively.
 * delete_repo
 Delete access to adminable repositories.
 * notifications
 Read access to a user’s notifications. repo is accepted too.
 * gist
-write access to gists.
+Write access to gists.
 
 =head1 MANAGING AUTHORIZATIONS
 
