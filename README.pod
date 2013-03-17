@@ -2,7 +2,7 @@
 
 =encoding utf-8
 
-=for :stopwords Chris Weyl OAuth OAuth2 Str repo repos gists adminable
+=for :stopwords Chris Weyl OAuth OAuth2 Str repo repos gists adminable unfollow
 
 =head1 NAME
 
@@ -10,7 +10,7 @@ GitHub::Authorization - Generate a GitHub OAuth2 non-web authorization token
 
 =head1 VERSION
 
-This document describes version 0.001 of GitHub::Authorization - released December 24, 2012 as part of GitHub-Authorization.
+This document describes version 0.001 of GitHub::Authorization - released March 16, 2013 as part of GitHub-Authorization.
 
 =head1 SYNOPSIS
 
@@ -76,7 +76,19 @@ public read-only access (includes public user profile info, public repo info, an
 
 user
 
-Read/write access to profile info only.
+Read/write access to profile info only. Note: this scope includes C<user:email> and C<user:follow>.
+
+=item *
+
+user:email
+
+Read access to a user’s email addresses.
+
+=item *
+
+user:follow
+
+Access to follow or unfollow other users.
 
 =item *
 
@@ -94,7 +106,7 @@ Read/write access to public and private repos and organizations.
 
 repo:status
 
-Read/write access to public and private repo statuses. Does not include access to code - use repo for that.
+Read/write access to public and private repository commit statuses. This scope is only necessary to grant other users or services access to private repository commit statuses without granting access to the code. The C<repo> and C<public_repo> scopes already include access to commit status for private and public repositories respectively.
 
 =item *
 
@@ -112,7 +124,7 @@ Read access to a user’s notifications. repo is accepted too.
 
 gist
 
-write access to gists.
+Write access to gists.
 
 =back
 
@@ -156,7 +168,7 @@ A short note (or reminder) describing what the authorization is for.
 
 =item *
 
-note_uri
+note_url
 
 A link that describes why the authorization has been generated
 We throw an exception on error or failure, and return the structure describing
@@ -207,6 +219,14 @@ On failure, we confess() our sins:
 That is, we L<Carp/confess> with the status code, status message, and the
 message returned from GitHub itself.
 
+=head2 legal_scopes
+
+Returns a list of legal scope names.  (See get_gh_token() doc for the list)
+
+=head2 is_legal_scope('scope_name')
+
+Returns true if the scope name given is a legal scope.
+
 =head1 MANAGING AUTHORIZATIONS
 
 All of a user's GitHub authorization tokens can be viewed and revoked on their
@@ -248,6 +268,20 @@ L<Net::GitHub>
 L<Pithub>
 
 =back
+
+=head1 SOURCE
+
+The development version is on github at L<http://github.com/RsrchBoy/github-authorization>
+and may be cloned from L<git://github.com/RsrchBoy/github-authorization.git>
+
+=head1 BUGS
+
+Please report any bugs or feature requests on the bugtracker website
+https://github.com/RsrchBoy/github-authorization/issues
+
+When submitting a bug or request, please include a test-file or a
+patch to an existing test-file that illustrates the bug or desired
+feature.
 
 =head1 AUTHOR
 
