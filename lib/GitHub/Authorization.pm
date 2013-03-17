@@ -1,4 +1,16 @@
+#
+# This file is part of GitHub-Authorization
+#
+# This software is Copyright (c) 2012 by Chris Weyl.
+#
+# This is free software, licensed under:
+#
+#   The GNU Lesser General Public License, Version 2.1, February 1999
+#
 package GitHub::Authorization;
+{
+  $GitHub::Authorization::VERSION = '0.001';
+}
 
 # ABSTRACT: Generate a GitHub OAuth2 non-web authorization token
 
@@ -32,66 +44,6 @@ sub _default_agent {
 
 sub _url { 'https://api.github.com' . shift }
 
-=func get_gh_token(user => Str, password => Str, ...)
-
-B<NOTE: Validate your parameters!>  We do basic validation, but nothing
-strenuous.
-
-We take 2 mandatory parameters (user and password), and can take several more
-optional ones:
-
-=head3 Parameters
-
-=for :list
-* user (required)
-The user-name or email of the user the authorization is being created against.
-* password (required)
-The user's password.
-* scopes
-An ArrayRef of scopes (described L</Legal Scopes>).
-* note
-A short note (or reminder) describing what the authorization is for.
-* note_url
-A link that describes why the authorization has been generated
-We throw an exception on error or failure, and return the structure describing
-the new authorization token (and the token itself, as described below) on
-success.
-* client_id (required if client_secret is given)
-If requesting an authorization for a specific app, pass its client key here.
-* client_secret (required if client_id is given)
-If requesting an authorization for a specific app, pass its client secret here.
-
-=head3 On success...
-
-A successful return from get_gh_token() will look something like this:
-
-    {
-        app => {
-            name => "test! (API)",
-            url  => "http://developer.github.com/v3/oauth/#oauth-authorizations-api",
-        },
-        created_at => "2012-12-24T14:28:17Z",
-        id         => xxxxxxx, # an integer > 0
-        note       => "test!",
-        note_url   => undef,
-        scopes     => ["public_repo"],
-        token      => "****************************************",
-        updated_at => "2012-12-24T14:28:17Z",
-        url        => "https://api.github.com/authorizations/xxxxxxx",
-    }
-
-The C<token> slot is probably the bit you want.
-
-=head3 On failure/error...
-
-On failure, we confess() our sins:
-
-    Failed: 401/Unauthorized / Bad credentials ...
-
-That is, we L<Carp/confess> with the status code, status message, and the
-message returned from GitHub itself.
-
-=cut
 
 sub get_gh_token {
 
@@ -152,15 +104,6 @@ sub get_gh_token {
     return $res->{content}->from_json;
 }
 
-=func legal_scopes
-
-Returns a list of legal scope names.  (See get_gh_token() doc for the list)
-
-=func is_legal_scope('scope_name')
-
-Returns true if the scope name given is a legal scope.
-
-=cut
 
 {
     my %scopes =
@@ -176,9 +119,22 @@ Returns true if the scope name given is a legal scope.
 }
 
 !!42;
+
 __END__
 
-=for :stopwords OAuth OAuth2 Str repo repos gists adminable unfollow
+=pod
+
+=encoding utf-8
+
+=for :stopwords Chris Weyl OAuth OAuth2 Str repo repos gists adminable unfollow
+
+=head1 NAME
+
+GitHub::Authorization - Generate a GitHub OAuth2 non-web authorization token
+
+=head1 VERSION
+
+This document describes version 0.001 of GitHub::Authorization - released March 16, 2013 as part of GitHub-Authorization.
 
 =head1 SYNOPSIS
 
@@ -232,27 +188,168 @@ taken almost verbatim from that page).  If a scope appears
 there but not here, please file an issue against this package (as the author
 has likely not noticed it yet).
 
-=for :list
-* (no scopes given)
+=over 4
+
+=item *
+
+(no scopes given)
+
 public read-only access (includes public user profile info, public repo info, and gists).
-* user
+
+=item *
+
+user
+
 Read/write access to profile info only. Note: this scope includes C<user:email> and C<user:follow>.
-* user:email
+
+=item *
+
+user:email
+
 Read access to a user’s email addresses.
-* user:follow
+
+=item *
+
+user:follow
+
 Access to follow or unfollow other users.
-* public_repo
+
+=item *
+
+public_repo
+
 Read/write access to public repos and organizations.
-* repo
+
+=item *
+
+repo
+
 Read/write access to public and private repos and organizations.
-* repo:status
+
+=item *
+
+repo:status
+
 Read/write access to public and private repository commit statuses. This scope is only necessary to grant other users or services access to private repository commit statuses without granting access to the code. The C<repo> and C<public_repo> scopes already include access to commit status for private and public repositories respectively.
-* delete_repo
+
+=item *
+
+delete_repo
+
 Delete access to adminable repositories.
-* notifications
+
+=item *
+
+notifications
+
 Read access to a user’s notifications. repo is accepted too.
-* gist
+
+=item *
+
+gist
+
 Write access to gists.
+
+=back
+
+=head1 FUNCTIONS
+
+=head2 get_gh_token(user => Str, password => Str, ...)
+
+B<NOTE: Validate your parameters!>  We do basic validation, but nothing
+strenuous.
+
+We take 2 mandatory parameters (user and password), and can take several more
+optional ones:
+
+=head3 Parameters
+
+=over 4
+
+=item *
+
+user (required)
+
+The user-name or email of the user the authorization is being created against.
+
+=item *
+
+password (required)
+
+The user's password.
+
+=item *
+
+scopes
+
+An ArrayRef of scopes (described L</Legal Scopes>).
+
+=item *
+
+note
+
+A short note (or reminder) describing what the authorization is for.
+
+=item *
+
+note_url
+
+A link that describes why the authorization has been generated
+We throw an exception on error or failure, and return the structure describing
+the new authorization token (and the token itself, as described below) on
+success.
+
+=item *
+
+client_id (required if client_secret is given)
+
+If requesting an authorization for a specific app, pass its client key here.
+
+=item *
+
+client_secret (required if client_id is given)
+
+If requesting an authorization for a specific app, pass its client secret here.
+
+=back
+
+=head3 On success...
+
+A successful return from get_gh_token() will look something like this:
+
+    {
+        app => {
+            name => "test! (API)",
+            url  => "http://developer.github.com/v3/oauth/#oauth-authorizations-api",
+        },
+        created_at => "2012-12-24T14:28:17Z",
+        id         => xxxxxxx, # an integer > 0
+        note       => "test!",
+        note_url   => undef,
+        scopes     => ["public_repo"],
+        token      => "****************************************",
+        updated_at => "2012-12-24T14:28:17Z",
+        url        => "https://api.github.com/authorizations/xxxxxxx",
+    }
+
+The C<token> slot is probably the bit you want.
+
+=head3 On failure/error...
+
+On failure, we confess() our sins:
+
+    Failed: 401/Unauthorized / Bad credentials ...
+
+That is, we L<Carp/confess> with the status code, status message, and the
+message returned from GitHub itself.
+
+=head2 legal_scopes
+
+Returns a list of legal scope names.  (See get_gh_token() doc for the list)
+
+=head2 is_legal_scope('scope_name')
+
+Returns true if the scope name given is a legal scope.
 
 =head1 MANAGING AUTHORIZATIONS
 
@@ -278,8 +375,48 @@ otherwise doing anything with tokens outside of creating them.
 
 =head1 SEE ALSO
 
+Please see those modules/websites for more information related to this module.
+
+=over 4
+
+=item *
+
 L<The GitHub OAuth API reference|http://developer.github.com/v3/oauth/#create-a-new-authorization>
+
+=item *
+
 L<Net::GitHub>
+
+=item *
+
 L<Pithub>
+
+=back
+
+=head1 SOURCE
+
+The development version is on github at L<http://github.com/RsrchBoy/github-authorization>
+and may be cloned from L<git://github.com/RsrchBoy/github-authorization.git>
+
+=head1 BUGS
+
+Please report any bugs or feature requests on the bugtracker website
+https://github.com/RsrchBoy/github-authorization/issues
+
+When submitting a bug or request, please include a test-file or a
+patch to an existing test-file that illustrates the bug or desired
+feature.
+
+=head1 AUTHOR
+
+Chris Weyl <cweyl@alumni.drew.edu>
+
+=head1 COPYRIGHT AND LICENSE
+
+This software is Copyright (c) 2012 by Chris Weyl.
+
+This is free software, licensed under:
+
+  The GNU Lesser General Public License, Version 2.1, February 1999
 
 =cut
