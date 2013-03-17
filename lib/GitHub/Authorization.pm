@@ -178,7 +178,7 @@ Returns true if the scope name given is a legal scope.
 !!42;
 __END__
 
-=for :stopwords OAuth OAuth2 Str repo repos gists adminable
+=for :stopwords OAuth OAuth2 Str repo repos gists adminable unfollow
 
 =head1 SYNOPSIS
 
