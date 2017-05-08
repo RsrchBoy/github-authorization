@@ -144,7 +144,7 @@ sub get_gh_token {
         content => $content->to_json,
     });
 
-    ### $res;
+    ### $res
 
     confess "Failed: $res->{status}/$res->{reason} / " . $res->{content}->from_json->{message}
         unless $res->{success};
