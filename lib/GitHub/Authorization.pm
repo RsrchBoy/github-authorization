@@ -8,6 +8,7 @@ use Carp 'confess';
 
 use autobox::JSON;
 use HTTP::Tiny;
+use IO::Prompt::Tiny 'prompt';
 use MIME::Base64;
 use Params::Validate ':all';
 
@@ -20,9 +21,6 @@ use namespace::clean;
 use Sub::Exporter::Progressive -setup => {
     exports => [ qw{ is_legal_scope legal_scopes get_gh_token } ],
 };
-
-# debugging...
-#use Smart::Comments '###';
 
 sub _default_agent {
     'GitHub::Authorization/'
@@ -101,6 +99,12 @@ sub get_gh_token {
         password      => { type => SCALAR                                   },
         scopes        => { type => ARRAYREF, default => [ ]                 },
 
+        # 2fa callback
+        otp_callback => {
+            type    => CODEREF,
+            default => sub { prompt 'Two-factor OTP:' },
+        },
+
         # optional args
         note          => { %_opt                              },
         note_url      => { %_opt                              },
@@ -108,7 +112,8 @@ sub get_gh_token {
         client_secret => { %_opt, regex => qr/^[a-f0-9]{40}$/ },
     };
 
-    my ($user, $password, $scopes) = delete @args{qw{user password scopes}};
+    my ($user, $password, $scopes, $otp_callback)
+        = delete @args{qw{user password scopes otp_callback}};
 
     $scopes ||= [];
 
@@ -143,6 +148,21 @@ sub get_gh_token {
         headers => $headers,
         content => $content->to_json,
     });
+
+    if ($res->{status} == 401 && $res->{headers}->{'x-github-otp'}) {
+
+        ### need to prompt for GH OTP auth: $res
+        my $otp = $otp_callback->($res)
+            or confess 'Could not acquire OTP from user';
+
+        $res = $ua->post($url, {
+            headers => {
+                %$headers,
+                'X-GitHub-OTP' => $otp,
+            },
+            content => $content->to_json,
+        });
+    }
 
     ### $res
 
