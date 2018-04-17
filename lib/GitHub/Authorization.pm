@@ -6,7 +6,7 @@ use strict;
 use warnings;
 use Carp 'confess';
 
-use autobox::JSON;
+use JSON::Tiny qw{ decode_json encode_json };
 use HTTP::Tiny;
 use IO::Prompt::Tiny 'prompt';
 use MIME::Base64;
@@ -146,7 +146,7 @@ sub get_gh_token {
 
     my $res = $ua->post($url, {
         headers => $headers,
-        content => $content->to_json,
+        content => encode_json($content),
     });
 
     if ($res->{status} == 401 && $res->{headers}->{'x-github-otp'}) {
@@ -160,16 +160,16 @@ sub get_gh_token {
                 %$headers,
                 'X-GitHub-OTP' => $otp,
             },
-            content => $content->to_json,
+            content => encode_json($content),
         });
     }
 
     ### $res
 
-    confess "Failed: $res->{status}/$res->{reason} / " . $res->{content}->from_json->{message}
+    confess "Failed: $res->{status}/$res->{reason} / " . decode_json($res->{content})->{message}
         unless $res->{success};
 
-    return $res->{content}->from_json;
+    return decode_json($res->{content});
 }
 
 =func legal_scopes
