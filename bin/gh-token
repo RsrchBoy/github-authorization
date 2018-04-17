@@ -1,0 +1,25 @@
+#!/usr/bin/env perl
+
+# PODNAME: Generate GitHub personal access tokens
+
+use v5.10;
+use strict;
+use warnings;
+
+use IO::Prompt::Tiny 'prompt';
+use GitHub::Authorization 'get_gh_token';
+
+my $user = prompt 'userid:';
+my $pass = prompt 'password:';
+my $note = prompt 'note:';
+
+my $token = get_gh_token(
+    user => $user,
+    password => $pass,
+    note => $note,
+    scopes => ['repo'],
+);
+
+say $token;
+
+# !!42
